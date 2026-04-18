@@ -56,7 +56,11 @@ const defaultConfig = {
   discordRepeatCount: 5,
   discordRepeatDelaySeconds: 5,
   googleVoice: {
-    phoneNumber: ""
+    phoneNumber: "",
+    sleepStartTime: "",
+    sleepEndTime: "",
+    attempts: 3,
+    attemptIntervalSeconds: 60
   },
   gmailWatcher: {
     clientId: "",
@@ -122,6 +126,8 @@ function normalizeConfig(input = {}) {
   const matchMode = input.matchMode === "missing" ? "missing" : "contains";
   const discordRepeatCount = Number(input.discordRepeatCount);
   const discordRepeatDelaySeconds = Number(input.discordRepeatDelaySeconds);
+  const googleVoiceAttempts = Number(input?.googleVoice?.attempts);
+  const googleVoiceAttemptIntervalSeconds = Number(input?.googleVoice?.attemptIntervalSeconds);
   const refreshIntervalSeconds = Number(input.refreshIntervalSeconds);
   const refreshJitterSeconds = Number(input.refreshJitterSeconds);
   const smtpPort = Number(input?.smtp?.port);
@@ -163,7 +169,23 @@ function normalizeConfig(input = {}) {
       phoneNumber:
         typeof input?.googleVoice?.phoneNumber === "string"
           ? input.googleVoice.phoneNumber.trim()
-          : ""
+          : "",
+      sleepStartTime:
+        typeof input?.googleVoice?.sleepStartTime === "string"
+          ? input.googleVoice.sleepStartTime
+          : "",
+      sleepEndTime:
+        typeof input?.googleVoice?.sleepEndTime === "string"
+          ? input.googleVoice.sleepEndTime
+          : "",
+      attempts:
+        Number.isFinite(googleVoiceAttempts) && googleVoiceAttempts >= 1
+          ? Math.floor(googleVoiceAttempts)
+          : defaultConfig.googleVoice.attempts,
+      attemptIntervalSeconds:
+        Number.isFinite(googleVoiceAttemptIntervalSeconds) && googleVoiceAttemptIntervalSeconds >= 0
+          ? Math.floor(googleVoiceAttemptIntervalSeconds)
+          : defaultConfig.googleVoice.attemptIntervalSeconds
     },
     gmailWatcher: {
       clientId:
@@ -274,6 +296,55 @@ function hasGoogleVoiceNumber(googleVoice) {
   return Boolean(normalizeGoogleVoicePhoneNumber(googleVoice?.phoneNumber));
 }
 
+function parseTimeValue(value) {
+  const time = String(value || "").trim();
+  if (!time) {
+    return null;
+  }
+
+  const match = time.match(/^(\d{2}):(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) {
+    return null;
+  }
+
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+
+  return hours * 60 + minutes;
+}
+
+function isNowInScheduleWindow(startMinutes, endMinutes) {
+  if (startMinutes == null || endMinutes == null) {
+    return false;
+  }
+
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  if (startMinutes === endMinutes) {
+    return false;
+  }
+
+  if (endMinutes > startMinutes) {
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  }
+
+  return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+}
+
+function shouldUseGoogleVoiceSleepRetries(googleVoice) {
+  const startMinutes = parseTimeValue(googleVoice?.sleepStartTime);
+  const endMinutes = parseTimeValue(googleVoice?.sleepEndTime);
+  return isNowInScheduleWindow(startMinutes, endMinutes);
+}
+
 function buildGoogleVoiceCallUrl(phoneNumber) {
   const normalizedPhoneNumber = normalizeGoogleVoicePhoneNumber(phoneNumber);
 
@@ -382,6 +453,28 @@ async function sendDiscordAlertBurst(config, payload) {
   }
 
   return sentCount;
+}
+
+async function sendGoogleVoiceAlertBurst(googleVoice) {
+  const attempts = shouldUseGoogleVoiceSleepRetries(googleVoice)
+    ? Math.max(1, Number(googleVoice?.attempts) || 1)
+    : 1;
+  const repeatDelayMs =
+    attempts > 1 ? Math.max(0, Number(googleVoice?.attemptIntervalSeconds) || 0) * 1000 : 0;
+  let lastResult = null;
+
+  for (let index = 0; index < attempts; index += 1) {
+    lastResult = await openGoogleVoiceCallTab(googleVoice.phoneNumber);
+
+    if (index < attempts - 1 && repeatDelayMs > 0) {
+      await delay(repeatDelayMs);
+    }
+  }
+
+  return {
+    ...lastResult,
+    attempts
+  };
 }
 
 async function pathExists(targetPath) {
@@ -1222,6 +1315,7 @@ async function dispatchAlert(payload, config) {
     discordSent: false,
     discordSentCount: 0,
     googleVoiceOpened: false,
+    googleVoiceAttemptCount: 0,
     googleVoicePhoneNumber: "",
     googleVoiceUrl: "",
     error: ""
@@ -1265,9 +1359,10 @@ async function dispatchAlert(payload, config) {
 
   if (hasGoogleVoiceNumber(config.googleVoice)) {
     deliveryTasks.push(
-      openGoogleVoiceCallTab(config.googleVoice.phoneNumber)
+      sendGoogleVoiceAlertBurst(config.googleVoice)
         .then((googleVoiceResult) => {
           response.googleVoiceOpened = true;
+          response.googleVoiceAttemptCount = googleVoiceResult.attempts || 1;
           response.googleVoicePhoneNumber = googleVoiceResult.phoneNumber;
           response.googleVoiceUrl = googleVoiceResult.url;
         })

@@ -131,9 +131,38 @@
                   </button>
                 </div>
 
+                <div class="voice-settings-grid">
+                  <label class="field compact-field">
+                    <span>Sleep start</span>
+                    <input id="googleVoiceSleepStartInput" type="time" />
+                  </label>
+
+                  <label class="field compact-field">
+                    <span>Sleep end</span>
+                    <input id="googleVoiceSleepEndInput" type="time" />
+                  </label>
+
+                  <label class="field compact-field">
+                    <span>Attempts</span>
+                    <input id="googleVoiceAttemptsInput" type="number" min="1" step="1" value="3" />
+                  </label>
+
+                  <label class="field compact-field">
+                    <span>Seconds between</span>
+                    <input
+                      id="googleVoiceAttemptIntervalInput"
+                      type="number"
+                      min="0"
+                      step="1"
+                      value="60"
+                    />
+                  </label>
+                </div>
+
                 <p class="delivery-note">
                   When this is filled in, alerts open `voice.google.com` in a new tab in the same
-                  managed Chrome profile with the number prefilled.
+                  managed Chrome profile with the number prefilled. During the sleep window, alerts
+                  can retry Voice calling based on the attempts and interval settings.
                 </p>
 
                 <div class="email-grid">

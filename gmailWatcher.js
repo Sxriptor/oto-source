@@ -462,7 +462,10 @@ function createGmailWatcherService({
     }
 
     if (response?.googleVoiceOpened) {
-      channels.push(`Google Voice ${response.googleVoicePhoneNumber}`);
+      const attemptCount = Math.max(1, Number(response.googleVoiceAttemptCount) || 1);
+      channels.push(
+        `Google Voice ${response.googleVoicePhoneNumber}${attemptCount > 1 ? ` x${attemptCount}` : ""}`
+      );
     }
 
     return channels.join(" + ");

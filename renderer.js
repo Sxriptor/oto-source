@@ -24,6 +24,10 @@ const discordWebhookInput = document.getElementById("discordWebhookInput");
 const discordRepeatCountInput = document.getElementById("discordRepeatCountInput");
 const discordRepeatDelayInput = document.getElementById("discordRepeatDelayInput");
 const googleVoicePhoneInput = document.getElementById("googleVoicePhoneInput");
+const googleVoiceSleepStartInput = document.getElementById("googleVoiceSleepStartInput");
+const googleVoiceSleepEndInput = document.getElementById("googleVoiceSleepEndInput");
+const googleVoiceAttemptsInput = document.getElementById("googleVoiceAttemptsInput");
+const googleVoiceAttemptIntervalInput = document.getElementById("googleVoiceAttemptIntervalInput");
 const googleVoiceCallButton = document.getElementById("googleVoiceCallButton");
 const backButton = document.getElementById("backButton");
 const forwardButton = document.getElementById("forwardButton");
@@ -154,6 +158,10 @@ function populateForm(config) {
   discordRepeatCountInput.value = String(config.discordRepeatCount || 5);
   discordRepeatDelayInput.value = String(config.discordRepeatDelaySeconds ?? 5);
   googleVoicePhoneInput.value = config.googleVoice?.phoneNumber || "";
+  googleVoiceSleepStartInput.value = config.googleVoice?.sleepStartTime || "";
+  googleVoiceSleepEndInput.value = config.googleVoice?.sleepEndTime || "";
+  googleVoiceAttemptsInput.value = String(config.googleVoice?.attempts || 3);
+  googleVoiceAttemptIntervalInput.value = String(config.googleVoice?.attemptIntervalSeconds ?? 60);
   smtpEnabledInput.checked = Boolean(config.smtp?.enabled);
   smtpHostInput.value = config.smtp.host || "";
   smtpPortInput.value = String(config.smtp.port || 587);
@@ -189,7 +197,14 @@ function readFormConfig() {
     discordRepeatDelaySeconds:
       discordRepeatDelayInput.value === "" ? 5 : Number(discordRepeatDelayInput.value),
     googleVoice: {
-      phoneNumber: googleVoicePhoneInput.value.trim()
+      phoneNumber: googleVoicePhoneInput.value.trim(),
+      sleepStartTime: googleVoiceSleepStartInput.value,
+      sleepEndTime: googleVoiceSleepEndInput.value,
+      attempts: Number(googleVoiceAttemptsInput.value) || 3,
+      attemptIntervalSeconds:
+        googleVoiceAttemptIntervalInput.value === ""
+          ? 60
+          : Number(googleVoiceAttemptIntervalInput.value)
     },
     gmailWatcher: {
       clientId: gmailClientIdInput.value.trim(),
@@ -575,7 +590,12 @@ async function checkPageText() {
     }
 
     if (alertResponse.googleVoiceOpened) {
-      deliveryChannels.push(`Google Voice ${alertResponse.googleVoicePhoneNumber}`);
+      const attemptCount = Math.max(1, Number(alertResponse.googleVoiceAttemptCount) || 1);
+      deliveryChannels.push(
+        `Google Voice ${alertResponse.googleVoicePhoneNumber}${
+          attemptCount > 1 ? ` x${attemptCount}` : ""
+        }`
+      );
     }
 
     const delivery = alertResponse.error
