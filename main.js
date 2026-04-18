@@ -108,6 +108,10 @@ function getConfigPath() {
   return path.join(app.getPath("userData"), CONFIG_FILE_NAME);
 }
 
+function getAppIconPath() {
+  return path.join(__dirname, "public", "icon.png");
+}
+
 function getChromeProfileDir() {
   return path.join(app.getPath("userData"), CHROME_PROFILE_DIR_NAME);
 }
@@ -1388,6 +1392,7 @@ function createMainWindow() {
     minHeight: 700,
     autoHideMenuBar: true,
     backgroundColor: "#10131a",
+    icon: getAppIconPath(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,

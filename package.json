@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder",
-    "dist:win": "electron-builder --win portable",
+    "dist:win": "electron-builder --win nsis",
     "dist:mac": "electron-builder --mac dmg"
   },
   "keywords": [
@@ -23,6 +23,7 @@
   "build": {
     "appId": "com.oto.app",
     "productName": "OTO",
+    "icon": "public/icon.png",
     "directories": {
       "output": "dist"
     },
@@ -37,9 +38,14 @@
     },
     "win": {
       "target": [
-        "portable"
+        "nsis"
       ],
-      "executableName": "OTO"
+      "executableName": "OTO",
+      "icon": "public/icon.png"
+    },
+    "nsis": {
+      "installerSidebar": "public/installersidepanel.png",
+      "uninstallerSidebar": "public/installersidepanel.png"
     },
     "artifactName": "OTO.${ext}"
   },
