@@ -8,7 +8,7 @@ Minimal Electron control app that:
 
 ## Why this uses real Chrome
 
-- The site opens in actual `Google Chrome.app`, not an Electron webview.
+- The site opens in actual Google Chrome, not an Electron webview.
 - That avoids the Electron WebView/WebAuthn/passkey issues you called out.
 - The app launches Chrome with a dedicated persistent profile under the app data folder, so cookies, login state, Chrome sign-in, and site sessions stay tied to the same Chrome profile across runs.
 - The monitor talks to that Chrome tab over Chrome DevTools Protocol to refresh it and inspect page text without clicking anything.
@@ -63,9 +63,11 @@ The output will be in `dist/` (DMG named `OTO.dmg`).
 2. Create a Google Cloud OAuth client for a desktop app and enable the Gmail API.
 3. Paste the OAuth `client ID` and `client secret` into the Gmail OAuth settings panel.
 4. Fill in the sender and/or subject rule plus the check interval.
-5. Click `Sign In` and complete Google consent in the in-app Google login window.
-6. Click `Start`.
-7. When a matching email is found, OTO triggers the same downstream alert flow already used by the Chrome watcher, including the optional Google Voice call tab.
+5. Click `Sign In`.
+6. On Windows, Google consent opens in your default browser because Google blocks embedded Electron sign-in windows there.
+7. After approval, Google redirects back to OTO through a local loopback callback.
+8. Click `Start`.
+9. When a matching email is found, OTO triggers the same downstream alert flow already used by the Chrome watcher, including the optional Google Voice call tab.
 
 ## Notes
 

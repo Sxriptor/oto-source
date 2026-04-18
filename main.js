@@ -14,11 +14,32 @@ const CHROME_CONNECT_POLL_MS = 250;
 const CHROME_DEBUGGING_PORT = 46871;
 const GOOGLE_VOICE_AUTOMATION_INITIAL_DELAY_MS = 2000;
 const GOOGLE_VOICE_AUTOMATION_STEP_DELAY_MS = 120;
-const CHROME_CANDIDATE_PATHS = [
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-  "/Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta",
-  "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary"
-];
+
+function getChromeCandidatePaths() {
+  if (process.platform === "win32") {
+    const programFiles = process.env.PROGRAMFILES || "C:\\Program Files";
+    const programFilesX86 = process.env["PROGRAMFILES(X86)"] || "C:\\Program Files (x86)";
+    const localAppData =
+      process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || "", "AppData", "Local");
+
+    return [
+      path.join(programFiles, "Google", "Chrome", "Application", "chrome.exe"),
+      path.join(programFilesX86, "Google", "Chrome", "Application", "chrome.exe"),
+      path.join(localAppData, "Google", "Chrome", "Application", "chrome.exe"),
+      path.join(programFiles, "Google", "Chrome Beta", "Application", "chrome.exe"),
+      path.join(programFilesX86, "Google", "Chrome Beta", "Application", "chrome.exe"),
+      path.join(localAppData, "Google", "Chrome Beta", "Application", "chrome.exe"),
+      path.join(programFiles, "Google", "Chrome SxS", "Application", "chrome.exe"),
+      path.join(localAppData, "Google", "Chrome SxS", "Application", "chrome.exe")
+    ];
+  }
+
+  return [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta",
+    "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary"
+  ];
+}
 
 const defaultConfig = {
   targetUrl: "",
@@ -259,7 +280,7 @@ function buildGoogleVoiceCallUrl(phoneNumber) {
     throw new Error("A Google Voice phone number is required.");
   }
 
-  return `https://voice.google.com/u/0/calls?a=nc,${encodeURIComponent(normalizedPhoneNumber)}`;
+  return `https://voice.google.com/calls?a=nc,${encodeURIComponent(normalizedPhoneNumber)}`;
 }
 
 async function openGoogleVoiceCallTab(phoneNumber) {
@@ -270,13 +291,27 @@ async function openGoogleVoiceCallTab(phoneNumber) {
   }
 
   await ensureChromeProcess();
-  const callUrl = buildGoogleVoiceCallUrl(normalizedPhoneNumber);
-  const target = await createChromeTarget(callUrl);
+  const voiceUrls = [
+    buildGoogleVoiceCallUrl(normalizedPhoneNumber),
+    `https://voice.google.com/u/0/calls?a=nc,${encodeURIComponent(normalizedPhoneNumber)}`,
+    `https://voice.google.com/calls`
+  ];
+  const target = await createChromeTarget("about:blank");
+  const session = await createDetachedChromeTargetSession(target);
+  let resolvedUrl = "";
+
+  try {
+    await session.sendCommand("Page.enable");
+    resolvedUrl = await navigateVoiceTarget(session.sendCommand, voiceUrls);
+  } finally {
+    session.close();
+  }
+
   await automateGoogleVoiceCallTarget(target);
 
   return {
     phoneNumber: normalizedPhoneNumber,
-    url: callUrl
+    url: resolvedUrl || voiceUrls[0]
   };
 }
 
@@ -362,7 +397,7 @@ async function findChromeExecutablePath() {
     return chromeState.executablePath;
   }
 
-  for (const candidate of CHROME_CANDIDATE_PATHS) {
+  for (const candidate of getChromeCandidatePaths()) {
     if (await pathExists(candidate)) {
       chromeState.executablePath = candidate;
       return candidate;
@@ -572,7 +607,11 @@ async function ensureChromeProcess() {
   const chromePath = await findChromeExecutablePath();
 
   if (!chromePath) {
-    throw new Error("Google Chrome.app was not found in /Applications.");
+    throw new Error(
+      process.platform === "win32"
+        ? "Google Chrome was not found in the standard Windows install paths."
+        : "Google Chrome.app was not found in /Applications."
+    );
   }
 
   chromeState.profileDir = getChromeProfileDir();
@@ -1070,6 +1109,67 @@ async function shutdownManagedChrome() {
   closeChromeTargetSocket("App shutting down.");
   chromeState.process = null;
   await closeChromeBrowser(port);
+}
+
+async function waitForDetachedPageLoad(sendCommand) {
+  const deadline = Date.now() + 15000;
+
+  while (Date.now() < deadline) {
+    const response = await sendCommand("Runtime.evaluate", {
+      expression: "document.readyState",
+      returnByValue: true,
+      awaitPromise: true
+    });
+
+    if (response?.result?.value === "complete") {
+      return;
+    }
+
+    await delay(200);
+  }
+
+  throw new Error("Google Voice tab did not finish loading in time.");
+}
+
+async function getDetachedPageUrl(sendCommand) {
+  const response = await sendCommand("Runtime.evaluate", {
+    expression: "location.href",
+    returnByValue: true,
+    awaitPromise: true
+  });
+
+  return typeof response?.result?.value === "string" ? response.result.value : "";
+}
+
+function isAcceptableGoogleVoiceUrl(url) {
+  if (!url) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === "voice.google.com" && parsed.pathname.includes("/calls");
+  } catch {
+    return false;
+  }
+}
+
+async function navigateVoiceTarget(sendCommand, candidateUrls) {
+  let lastUrl = "";
+
+  for (const url of candidateUrls) {
+    await sendCommand("Page.navigate", { url });
+    await waitForDetachedPageLoad(sendCommand);
+    lastUrl = await getDetachedPageUrl(sendCommand);
+
+    if (isAcceptableGoogleVoiceUrl(lastUrl)) {
+      return lastUrl;
+    }
+  }
+
+  throw new Error(
+    `Google Voice did not open the calls page. Final URL: ${lastUrl || "(unknown)"}`
+  );
 }
 
 async function dispatchAlert(payload, config) {

@@ -1,4 +1,4 @@
-const { BrowserWindow } = require("electron");
+const { BrowserWindow, shell } = require("electron");
 const crypto = require("node:crypto");
 const fs = require("node:fs/promises");
 const http = require("node:http");
@@ -22,6 +22,7 @@ function createGmailWatcherService({
   const state = {
     running: false,
     timer: null,
+    startedAtMs: 0,
     processedMessageIds: new Set(),
     persistedProcessedMessageIds: new Set(),
     currentConfig: null,
@@ -34,6 +35,7 @@ function createGmailWatcherService({
     lastActionTriggered: "",
     lastError: ""
   };
+  const MATCH_FRESHNESS_GRACE_MS = 5000;
 
   function getTokenPath() {
     return path.join(app.getPath("userData"), "gmail-oauth.json");
@@ -302,30 +304,34 @@ function createGmailWatcherService({
             finish(() => reject(new Error("Gmail sign-in timed out.")));
           }, AUTH_TIMEOUT_MS);
 
-          authWindow = new BrowserWindowClass({
-            width: 520,
-            height: 720,
-            minWidth: 420,
-            minHeight: 620,
-            autoHideMenuBar: true,
-            backgroundColor: "#10131a",
-            title: "Connect Gmail",
-            webPreferences: {
-              contextIsolation: true,
-              nodeIntegration: false,
-              sandbox: true
-            }
-          });
+          if (process.platform === "win32") {
+            await shell.openExternal(authUrl);
+          } else {
+            authWindow = new BrowserWindowClass({
+              width: 520,
+              height: 720,
+              minWidth: 420,
+              minHeight: 620,
+              autoHideMenuBar: true,
+              backgroundColor: "#10131a",
+              title: "Connect Gmail",
+              webPreferences: {
+                contextIsolation: true,
+                nodeIntegration: false,
+                sandbox: true
+              }
+            });
 
-          authWindow.on("closed", () => {
-            if (!settled) {
-              finish(() =>
-                reject(new Error("Gmail sign-in window was closed before authorization completed."))
-              );
-            }
-          });
+            authWindow.on("closed", () => {
+              if (!settled) {
+                finish(() =>
+                  reject(new Error("Gmail sign-in window was closed before authorization completed."))
+                );
+              }
+            });
 
-          await authWindow.loadURL(authUrl);
+            await authWindow.loadURL(authUrl);
+          }
         } catch (error) {
           finish(() => reject(error));
         }
@@ -408,6 +414,16 @@ function createGmailWatcherService({
     const subjectMatched = subjectNeedle ? subjectHeader.includes(subjectNeedle) : true;
 
     return senderMatched && subjectMatched;
+  }
+
+  function isFreshMessage(message) {
+    const internalDate = Number(message?.internalDate);
+
+    if (!Number.isFinite(internalDate) || internalDate <= 0 || state.startedAtMs <= 0) {
+      return false;
+    }
+
+    return internalDate >= state.startedAtMs - MATCH_FRESHNESS_GRACE_MS;
   }
 
   function describeMatch(message) {
@@ -509,10 +525,10 @@ function createGmailWatcherService({
           userId: "me",
           id: item.id,
           format: "metadata",
-          metadataHeaders: ["From", "Subject", "Date"]
+          metadataHeaders: ["From", "Subject", "Date", "Delivered-To"]
         });
 
-        if (matchesMessage(messageResponse.data, watcherConfig)) {
+        if (matchesMessage(messageResponse.data, watcherConfig) && isFreshMessage(messageResponse.data)) {
           matchedMessage = messageResponse.data;
           break;
         }
@@ -580,6 +596,7 @@ function createGmailWatcherService({
     state.lastMatchedEmail = "";
     state.lastActionTriggered = "";
     state.processedMessageIds.clear();
+    state.startedAtMs = Date.now();
     await loadProcessedCache();
     pushState("started");
     void poll();
@@ -590,6 +607,7 @@ function createGmailWatcherService({
     clearTimeout(state.timer);
     state.timer = null;
     state.running = false;
+    state.startedAtMs = 0;
     state.currentConfig = null;
     state.status = state.lastError && reason !== "stopped" ? "error" : "idle";
     return pushState(reason);
