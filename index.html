@@ -348,6 +348,69 @@
                 </p>
               </details>
 
+              <details class="email-panel">
+                <summary>Google Voice Sleep Settings</summary>
+                <div class="voice-row">
+                  <label class="field">
+                    <span>Google Voice number</span>
+                    <input
+                      id="gmailGoogleVoicePhoneInput"
+                      type="tel"
+                      placeholder="6107814212 or +16107814212"
+                      spellcheck="false"
+                    />
+                  </label>
+
+                  <button
+                    id="gmailGoogleVoiceCallButton"
+                    class="ghost-button voice-button"
+                    type="button"
+                    disabled
+                  >
+                    Open Voice Call
+                  </button>
+                </div>
+
+                <div class="voice-settings-grid">
+                  <label class="field compact-field">
+                    <span>Sleep start</span>
+                    <input id="gmailGoogleVoiceSleepStartInput" type="time" />
+                  </label>
+
+                  <label class="field compact-field">
+                    <span>Sleep end</span>
+                    <input id="gmailGoogleVoiceSleepEndInput" type="time" />
+                  </label>
+
+                  <label class="field compact-field">
+                    <span>Attempts</span>
+                    <input
+                      id="gmailGoogleVoiceAttemptsInput"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value="3"
+                    />
+                  </label>
+
+                  <label class="field compact-field">
+                    <span>Seconds between</span>
+                    <input
+                      id="gmailGoogleVoiceAttemptIntervalInput"
+                      type="number"
+                      min="0"
+                      step="1"
+                      value="60"
+                    />
+                  </label>
+                </div>
+
+                <p class="delivery-note">
+                  These are the same Google Voice retry settings shown in the Chrome Watcher tab.
+                  Updating them here updates both tabs.
+                </p>
+              </details>
+
               <div class="gmail-toggle-row">
                 <label class="checkbox-field">
                   <input id="gmailUnreadOnlyInput" type="checkbox" />

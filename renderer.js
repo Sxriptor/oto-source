@@ -29,6 +29,14 @@ const googleVoiceSleepEndInput = document.getElementById("googleVoiceSleepEndInp
 const googleVoiceAttemptsInput = document.getElementById("googleVoiceAttemptsInput");
 const googleVoiceAttemptIntervalInput = document.getElementById("googleVoiceAttemptIntervalInput");
 const googleVoiceCallButton = document.getElementById("googleVoiceCallButton");
+const gmailGoogleVoicePhoneInput = document.getElementById("gmailGoogleVoicePhoneInput");
+const gmailGoogleVoiceSleepStartInput = document.getElementById("gmailGoogleVoiceSleepStartInput");
+const gmailGoogleVoiceSleepEndInput = document.getElementById("gmailGoogleVoiceSleepEndInput");
+const gmailGoogleVoiceAttemptsInput = document.getElementById("gmailGoogleVoiceAttemptsInput");
+const gmailGoogleVoiceAttemptIntervalInput = document.getElementById(
+  "gmailGoogleVoiceAttemptIntervalInput"
+);
+const gmailGoogleVoiceCallButton = document.getElementById("gmailGoogleVoiceCallButton");
 const backButton = document.getElementById("backButton");
 const forwardButton = document.getElementById("forwardButton");
 const refreshButton = document.getElementById("refreshButton");
@@ -162,6 +170,13 @@ function populateForm(config) {
   googleVoiceSleepEndInput.value = config.googleVoice?.sleepEndTime || "";
   googleVoiceAttemptsInput.value = String(config.googleVoice?.attempts || 3);
   googleVoiceAttemptIntervalInput.value = String(config.googleVoice?.attemptIntervalSeconds ?? 60);
+  gmailGoogleVoicePhoneInput.value = config.googleVoice?.phoneNumber || "";
+  gmailGoogleVoiceSleepStartInput.value = config.googleVoice?.sleepStartTime || "";
+  gmailGoogleVoiceSleepEndInput.value = config.googleVoice?.sleepEndTime || "";
+  gmailGoogleVoiceAttemptsInput.value = String(config.googleVoice?.attempts || 3);
+  gmailGoogleVoiceAttemptIntervalInput.value = String(
+    config.googleVoice?.attemptIntervalSeconds ?? 60
+  );
   smtpEnabledInput.checked = Boolean(config.smtp?.enabled);
   smtpHostInput.value = config.smtp.host || "";
   smtpPortInput.value = String(config.smtp.port || 587);
@@ -182,6 +197,31 @@ function populateForm(config) {
 }
 
 function readFormConfig() {
+  const activeGoogleVoicePhone =
+    state.activeTab === "gmail"
+      ? gmailGoogleVoicePhoneInput.value.trim() || googleVoicePhoneInput.value.trim()
+      : googleVoicePhoneInput.value.trim() || gmailGoogleVoicePhoneInput.value.trim();
+  const activeGoogleVoiceSleepStart =
+    state.activeTab === "gmail"
+      ? gmailGoogleVoiceSleepStartInput.value || googleVoiceSleepStartInput.value
+      : googleVoiceSleepStartInput.value || gmailGoogleVoiceSleepStartInput.value;
+  const activeGoogleVoiceSleepEnd =
+    state.activeTab === "gmail"
+      ? gmailGoogleVoiceSleepEndInput.value || googleVoiceSleepEndInput.value
+      : googleVoiceSleepEndInput.value || gmailGoogleVoiceSleepEndInput.value;
+  const activeGoogleVoiceAttempts =
+    state.activeTab === "gmail"
+      ? Number(gmailGoogleVoiceAttemptsInput.value) || Number(googleVoiceAttemptsInput.value) || 3
+      : Number(googleVoiceAttemptsInput.value) || Number(gmailGoogleVoiceAttemptsInput.value) || 3;
+  const activeGoogleVoiceAttemptInterval =
+    state.activeTab === "gmail"
+      ? gmailGoogleVoiceAttemptIntervalInput.value === ""
+        ? Number(googleVoiceAttemptIntervalInput.value) || 60
+        : Number(gmailGoogleVoiceAttemptIntervalInput.value)
+      : googleVoiceAttemptIntervalInput.value === ""
+        ? Number(gmailGoogleVoiceAttemptIntervalInput.value) || 60
+        : Number(googleVoiceAttemptIntervalInput.value);
+
   return {
     targetUrl: urlInput.value.trim(),
     searchText: searchTextInput.value.trim(),
@@ -197,14 +237,11 @@ function readFormConfig() {
     discordRepeatDelaySeconds:
       discordRepeatDelayInput.value === "" ? 5 : Number(discordRepeatDelayInput.value),
     googleVoice: {
-      phoneNumber: googleVoicePhoneInput.value.trim(),
-      sleepStartTime: googleVoiceSleepStartInput.value,
-      sleepEndTime: googleVoiceSleepEndInput.value,
-      attempts: Number(googleVoiceAttemptsInput.value) || 3,
-      attemptIntervalSeconds:
-        googleVoiceAttemptIntervalInput.value === ""
-          ? 60
-          : Number(googleVoiceAttemptIntervalInput.value)
+      phoneNumber: activeGoogleVoicePhone,
+      sleepStartTime: activeGoogleVoiceSleepStart,
+      sleepEndTime: activeGoogleVoiceSleepEnd,
+      attempts: activeGoogleVoiceAttempts,
+      attemptIntervalSeconds: activeGoogleVoiceAttemptInterval
     },
     gmailWatcher: {
       clientId: gmailClientIdInput.value.trim(),
@@ -324,6 +361,7 @@ function syncNavigationButtons() {
   refreshButton.disabled = !pageOpen;
   stopButton.disabled = !pageOpen;
   googleVoiceCallButton.disabled = !state.browserStatus?.chromeAvailable;
+  gmailGoogleVoiceCallButton.disabled = !state.browserStatus?.chromeAvailable;
 }
 
 function applyBrowserStatus(browser, options = {}) {
@@ -744,6 +782,35 @@ async function openGoogleVoiceCall() {
   }
 }
 
+function syncSharedGoogleVoiceInputs(source = "chrome") {
+  const sourceIsGmail = source === "gmail";
+  const phone = sourceIsGmail ? gmailGoogleVoicePhoneInput.value : googleVoicePhoneInput.value;
+  const sleepStart = sourceIsGmail
+    ? gmailGoogleVoiceSleepStartInput.value
+    : googleVoiceSleepStartInput.value;
+  const sleepEnd = sourceIsGmail
+    ? gmailGoogleVoiceSleepEndInput.value
+    : googleVoiceSleepEndInput.value;
+  const attempts = sourceIsGmail ? gmailGoogleVoiceAttemptsInput.value : googleVoiceAttemptsInput.value;
+  const interval = sourceIsGmail
+    ? gmailGoogleVoiceAttemptIntervalInput.value
+    : googleVoiceAttemptIntervalInput.value;
+
+  if (sourceIsGmail) {
+    googleVoicePhoneInput.value = phone;
+    googleVoiceSleepStartInput.value = sleepStart;
+    googleVoiceSleepEndInput.value = sleepEnd;
+    googleVoiceAttemptsInput.value = attempts;
+    googleVoiceAttemptIntervalInput.value = interval;
+  } else {
+    gmailGoogleVoicePhoneInput.value = phone;
+    gmailGoogleVoiceSleepStartInput.value = sleepStart;
+    gmailGoogleVoiceSleepEndInput.value = sleepEnd;
+    gmailGoogleVoiceAttemptsInput.value = attempts;
+    gmailGoogleVoiceAttemptIntervalInput.value = interval;
+  }
+}
+
 async function connectGmail() {
   const config = await saveConfig({ repopulateForm: true });
   log("Starting Gmail sign-in flow.", "gmail");
@@ -934,6 +1001,10 @@ googleVoiceCallButton.addEventListener("click", () => {
   void openGoogleVoiceCall();
 });
 
+gmailGoogleVoiceCallButton.addEventListener("click", () => {
+  void openGoogleVoiceCall();
+});
+
 toggleAutoButton.addEventListener("click", () => {
   if (state.autoRefreshTimer) {
     stopAutoRefresh();
@@ -971,10 +1042,46 @@ gmailStopButton.addEventListener("click", () => {
 const settingsFields = document.querySelectorAll("input, select");
 for (const field of settingsFields) {
   field.addEventListener("input", () => {
+    if (
+      field === googleVoicePhoneInput ||
+      field === googleVoiceSleepStartInput ||
+      field === googleVoiceSleepEndInput ||
+      field === googleVoiceAttemptsInput ||
+      field === googleVoiceAttemptIntervalInput
+    ) {
+      syncSharedGoogleVoiceInputs("chrome");
+    } else if (
+      field === gmailGoogleVoicePhoneInput ||
+      field === gmailGoogleVoiceSleepStartInput ||
+      field === gmailGoogleVoiceSleepEndInput ||
+      field === gmailGoogleVoiceAttemptsInput ||
+      field === gmailGoogleVoiceAttemptIntervalInput
+    ) {
+      syncSharedGoogleVoiceInputs("gmail");
+    }
+
     scheduleConfigSave();
   });
 
   field.addEventListener("change", () => {
+    if (
+      field === googleVoicePhoneInput ||
+      field === googleVoiceSleepStartInput ||
+      field === googleVoiceSleepEndInput ||
+      field === googleVoiceAttemptsInput ||
+      field === googleVoiceAttemptIntervalInput
+    ) {
+      syncSharedGoogleVoiceInputs("chrome");
+    } else if (
+      field === gmailGoogleVoicePhoneInput ||
+      field === gmailGoogleVoiceSleepStartInput ||
+      field === gmailGoogleVoiceSleepEndInput ||
+      field === gmailGoogleVoiceAttemptsInput ||
+      field === gmailGoogleVoiceAttemptIntervalInput
+    ) {
+      syncSharedGoogleVoiceInputs("gmail");
+    }
+
     saveConfigNow();
   });
 }
