@@ -1,0 +1,50 @@
+{
+  "name": "refresh-watcher",
+  "version": "1.0.0",
+  "description": "Minimal Electron monitor for refreshing a site and alerting when an element becomes visible.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win portable",
+    "dist:mac": "electron-builder --mac dmg"
+  },
+  "keywords": [
+    "electron",
+    "monitor",
+    "nodemailer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^38.2.2",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.oto.app",
+    "productName": "OTO",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!dist/**"
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "executableName": "OTO"
+    },
+    "artifactName": "OTO.${ext}"
+  },
+  "dependencies": {
+    "googleapis": "^171.4.0",
+    "nodemailer": "^8.0.5"
+  }
+}

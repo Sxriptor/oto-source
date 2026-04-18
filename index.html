@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src https: http: about: file:;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OTO</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="tab-strip">
+        <button id="chromeTabButton" class="tab-button active" type="button">Chrome Watcher</button>
+        <button id="gmailTabButton" class="tab-button" type="button">Gmail Watcher</button>
+      </header>
+
+      <section id="chromeTabView" class="tab-view">
+        <div class="watcher-shell">
+          <section class="control-panel">
+            <button
+              id="panelToggleBar"
+              class="panel-toggle-bar"
+              type="button"
+              aria-expanded="true"
+              hidden
+            >
+              <span id="panelToggleLabel" class="panel-toggle-label">Hide Controls</span>
+              <span id="panelToggleHint" class="panel-toggle-hint">Click to collapse</span>
+            </button>
+
+            <div id="controlPanelContent" class="control-panel-content">
+              <div class="control-row primary-row">
+                <button id="backButton" class="ghost-button" type="button">Back</button>
+                <button id="forwardButton" class="ghost-button" type="button">Forward</button>
+                <button id="refreshButton" class="ghost-button" type="button">Refresh</button>
+                <button id="stopButton" class="danger-button" type="button" disabled>Stop</button>
+                <input
+                  id="urlInput"
+                  type="url"
+                  placeholder="https://example.com"
+                  spellcheck="false"
+                />
+                <button id="goButton" class="solid-button" type="button">Go</button>
+                <button id="toggleAutoButton" class="solid-button" type="button">
+                  Start Auto Refresh
+                </button>
+              </div>
+
+              <div class="control-row secondary-row">
+                <label class="field">
+                  <span>Find this text</span>
+                  <input
+                    id="searchTextInput"
+                    type="text"
+                    placeholder="accept"
+                    spellcheck="false"
+                  />
+                </label>
+
+                <label class="field compact-field">
+                  <span>Alert when</span>
+                  <select id="matchModeInput">
+                    <option value="contains">Text is found</option>
+                    <option value="missing">Text is missing</option>
+                  </select>
+                </label>
+
+                <label class="field compact-field">
+                  <span>Refresh every</span>
+                  <input id="refreshIntervalInput" type="number" min="1" step="1" value="30" />
+                </label>
+
+                <label class="field compact-field">
+                  <span>Jitter +/- (sec)</span>
+                  <input id="refreshJitterInput" type="number" min="0" max="10" step="1" value="10" />
+                </label>
+
+                <label class="field user-agent-field">
+                  <span>Custom user agent</span>
+                  <input
+                    id="userAgentInput"
+                    type="text"
+                    placeholder="Unused in real Google Chrome mode"
+                    spellcheck="false"
+                  />
+                </label>
+              </div>
+
+              <div class="control-row tertiary-row">
+                <label class="checkbox-field">
+                  <input id="caseSensitiveInput" type="checkbox" />
+                  <span>Case-sensitive text search</span>
+                </label>
+              </div>
+
+              <div class="control-row schedule-row">
+                <label class="field compact-field">
+                  <span>Auto-run start</span>
+                  <input id="scheduleStartInput" type="time" />
+                </label>
+
+                <label class="field compact-field">
+                  <span>Auto-run end</span>
+                  <input id="scheduleEndInput" type="time" />
+                </label>
+              </div>
+
+              <details class="email-panel">
+                <summary>Alert delivery settings</summary>
+                <div class="voice-row">
+                  <label class="field">
+                    <span>Google Voice number</span>
+                    <input
+                      id="googleVoicePhoneInput"
+                      type="tel"
+                      placeholder="6107814212 or +16107814212"
+                      spellcheck="false"
+                    />
+                  </label>
+
+                  <button
+                    id="googleVoiceCallButton"
+                    class="ghost-button voice-button"
+                    type="button"
+                    disabled
+                  >
+                    Open Voice Call
+                  </button>
+                </div>
+
+                <p class="delivery-note">
+                  When this is filled in, alerts open `voice.google.com` in a new tab in the same
+                  managed Chrome profile with the number prefilled.
+                </p>
+
+                <div class="email-grid">
+                  <label class="checkbox-field">
+                    <input id="smtpEnabledInput" type="checkbox" />
+                    <span>Enable email alerts</span>
+                  </label>
+
+                  <label class="field">
+                    <span>SMTP host</span>
+                    <input
+                      id="smtpHostInput"
+                      type="text"
+                      placeholder="smtp.gmail.com"
+                      spellcheck="false"
+                    />
+                  </label>
+
+                  <label class="field compact-field">
+                    <span>Port</span>
+                    <input id="smtpPortInput" type="number" min="1" step="1" value="587" />
+                  </label>
+
+                  <label class="checkbox-field">
+                    <input id="smtpSecureInput" type="checkbox" />
+                    <span>Use secure/TLS</span>
+                  </label>
+
+                  <label class="field">
+                    <span>Username</span>
+                    <input id="smtpUserInput" type="text" spellcheck="false" />
+                  </label>
+
+                  <label class="field">
+                    <span>Password or app password</span>
+                    <input id="smtpPassInput" type="password" />
+                  </label>
+
+                  <label class="field">
+                    <span>From</span>
+                    <input
+                      id="smtpFromInput"
+                      type="email"
+                      placeholder="alerts@example.com"
+                      spellcheck="false"
+                    />
+                  </label>
+
+                  <label class="field">
+                    <span>To</span>
+                    <input
+                      id="smtpToInput"
+                      type="email"
+                      placeholder="you@example.com"
+                      spellcheck="false"
+                    />
+                  </label>
+                </div>
+
+                <label class="field webhook-field">
+                  <span>Discord webhook URL</span>
+                  <input
+                    id="discordWebhookInput"
+                    type="url"
+                    placeholder="https://discord.com/api/webhooks/..."
+                    spellcheck="false"
+                  />
+                </label>
+
+                <div class="discord-repeat-grid">
+                  <label class="field compact-field">
+                    <span>Discord repeats</span>
+                    <input id="discordRepeatCountInput" type="number" min="1" step="1" value="5" />
+                  </label>
+
+                  <label class="field compact-field">
+                    <span>Seconds between</span>
+                    <input id="discordRepeatDelayInput" type="number" min="0" step="1" value="5" />
+                  </label>
+                </div>
+              </details>
+
+              <div class="status-row">
+                <span id="statusBadge" class="status-badge idle">Idle</span>
+                <span id="pageTitleLabel" class="status-text">No page loaded</span>
+                <span id="lastCheckLabel" class="status-text">No page text check yet</span>
+              </div>
+
+              <div id="logPanel" class="log-panel"></div>
+            </div>
+          </section>
+
+          <section class="browser-surface">
+            <div class="browser-surface-card">
+              <span class="browser-surface-label">Real Browser</span>
+              <h2 id="browserSurfaceTitle">Google Chrome controller</h2>
+              <p id="browserSurfaceMessage" class="browser-surface-message">
+                Click `Go` to open a real Google Chrome window with a persistent profile for this
+                app.
+              </p>
+              <p id="browserSurfaceUrl" class="browser-surface-url">No Chrome page open yet.</p>
+              <p id="browserSurfaceProfile" class="browser-surface-profile"></p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="gmailTabView" class="tab-view" hidden>
+        <div class="watcher-shell gmail-shell">
+          <section class="control-panel gmail-control-panel">
+            <div class="control-panel-content gmail-control-content">
+              <div class="gmail-header-row">
+                <div>
+                  <span class="section-kicker">Gmail API</span>
+                  <h2 class="section-title">Gmail Watcher</h2>
+                  <p class="section-copy">
+                    Poll Gmail for matching messages, dedupe them, and reuse the existing alert +
+                    Google Voice flow.
+                  </p>
+                </div>
+                <div class="gmail-action-row">
+                  <button id="gmailConnectButton" class="ghost-button" type="button">
+                    Sign In
+                  </button>
+                  <button id="gmailDisconnectButton" class="ghost-button" type="button">
+                    Disconnect
+                  </button>
+                  <button id="gmailStartButton" class="solid-button" type="button">Start</button>
+                  <button id="gmailStopButton" class="danger-button" type="button" disabled>
+                    End
+                  </button>
+                </div>
+              </div>
+
+              <div class="gmail-grid">
+                <label class="field">
+                  <span>Sender name or email</span>
+                  <input
+                    id="gmailSenderInput"
+                    type="text"
+                    placeholder="Amazon A to Z or notifications@atoz.amazon.work"
+                    spellcheck="false"
+                  />
+                </label>
+
+                <label class="field">
+                  <span>Subject contains</span>
+                  <input
+                    id="gmailSubjectInput"
+                    type="text"
+                    placeholder="VTO Opportunity available"
+                    spellcheck="false"
+                  />
+                </label>
+
+                <label class="field compact-field">
+                  <span>Check interval</span>
+                  <select id="gmailIntervalInput">
+                    <option value="15">15 sec</option>
+                    <option value="30" selected>30 sec</option>
+                    <option value="60">60 sec</option>
+                  </select>
+                </label>
+              </div>
+
+              <details class="email-panel">
+                <summary>Gmail OAuth settings</summary>
+                <div class="oauth-grid">
+                  <label class="field">
+                    <span>Google OAuth client ID</span>
+                    <input id="gmailClientIdInput" type="text" spellcheck="false" />
+                  </label>
+
+                  <label class="field">
+                    <span>Google OAuth client secret</span>
+                    <input id="gmailClientSecretInput" type="password" spellcheck="false" />
+                  </label>
+                </div>
+                <p class="delivery-note">
+                  Use a Google Cloud Desktop app OAuth client for Gmail API access. OTO opens the
+                  Google sign-in flow in an in-app window and stores tokens locally in the app data
+                  folder.
+                </p>
+              </details>
+
+              <div class="gmail-toggle-row">
+                <label class="checkbox-field">
+                  <input id="gmailUnreadOnlyInput" type="checkbox" />
+                  <span>Only unread emails</span>
+                </label>
+
+                <label class="checkbox-field">
+                  <input id="gmailMarkProcessedInput" type="checkbox" />
+                  <span>Mark as processed after match</span>
+                </label>
+
+                <label class="checkbox-field">
+                  <input id="gmailAllowRepeatedInput" type="checkbox" />
+                  <span>Allow repeated alerts for same email</span>
+                </label>
+              </div>
+
+              <div class="status-row">
+                <span id="gmailStatusBadge" class="status-badge idle">Idle</span>
+                <span id="gmailAccountLabel" class="status-text">Gmail not connected</span>
+                <span id="gmailLastCheckLabel" class="status-text">No Gmail checks yet</span>
+              </div>
+
+              <div class="gmail-status-grid">
+                <div class="status-card">
+                  <span class="status-card-label">Last matched email</span>
+                  <strong id="gmailLastMatchedLabel">No match yet</strong>
+                </div>
+                <div class="status-card">
+                  <span class="status-card-label">Last action triggered</span>
+                  <strong id="gmailLastActionLabel">No action yet</strong>
+                </div>
+                <div class="status-card">
+                  <span class="status-card-label">Current Gmail query</span>
+                  <strong id="gmailQueryLabel">No active query</strong>
+                </div>
+                <div class="status-card">
+                  <span class="status-card-label">Last error</span>
+                  <strong id="gmailErrorLabel">No errors</strong>
+                </div>
+              </div>
+
+              <div id="gmailLogPanel" class="log-panel"></div>
+            </div>
+          </section>
+
+          <section class="browser-surface gmail-surface">
+            <div class="browser-surface-card">
+              <span class="browser-surface-label">Watcher Summary</span>
+              <h2 id="gmailSurfaceTitle">Ready to monitor Gmail</h2>
+              <p id="gmailSurfaceMessage" class="browser-surface-message">
+                Connect a Gmail account, define the sender + subject rule, then start the watcher.
+              </p>
+              <p id="gmailSurfaceRule" class="browser-surface-url">Rule: not configured.</p>
+              <p id="gmailSurfaceAccount" class="browser-surface-profile">Account: not connected.</p>
+            </div>
+          </section>
+        </div>
+      </section>
+    </div>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>
