@@ -877,34 +877,6 @@ async function createDetachedChromeTargetSession(target) {
   return { sendCommand, close };
 }
 
-async function dispatchChromeKeyPress(sendCommand, options) {
-  const {
-    key,
-    code,
-    text = "",
-    windowsVirtualKeyCode,
-    nativeVirtualKeyCode = windowsVirtualKeyCode
-  } = options;
-
-  await sendCommand("Input.dispatchKeyEvent", {
-    type: "keyDown",
-    key,
-    code,
-    text,
-    unmodifiedText: text,
-    windowsVirtualKeyCode,
-    nativeVirtualKeyCode
-  });
-
-  await sendCommand("Input.dispatchKeyEvent", {
-    type: "keyUp",
-    key,
-    code,
-    windowsVirtualKeyCode,
-    nativeVirtualKeyCode
-  });
-}
-
 async function automateGoogleVoiceCallTarget(target) {
   if (!target?.webSocketDebuggerUrl) {
     throw new Error("Google Voice tab did not expose a debugger target.");
@@ -915,24 +887,7 @@ async function automateGoogleVoiceCallTarget(target) {
   try {
     await session.sendCommand("Page.bringToFront");
     await delay(GOOGLE_VOICE_AUTOMATION_INITIAL_DELAY_MS);
-
-    for (let index = 0; index < 5; index += 1) {
-      await dispatchChromeKeyPress(session.sendCommand, {
-        key: "Tab",
-        code: "Tab",
-        windowsVirtualKeyCode: 9,
-        nativeVirtualKeyCode: 48
-      });
-      await delay(GOOGLE_VOICE_AUTOMATION_STEP_DELAY_MS);
-    }
-
-    await dispatchChromeKeyPress(session.sendCommand, {
-      key: " ",
-      code: "Space",
-      text: " ",
-      windowsVirtualKeyCode: 32,
-      nativeVirtualKeyCode: 49
-    });
+    await clickGoogleVoiceCallButton(session.sendCommand);
   } finally {
     session.close();
   }
@@ -1129,6 +1084,62 @@ async function waitForDetachedPageLoad(sendCommand) {
   }
 
   throw new Error("Google Voice tab did not finish loading in time.");
+}
+
+async function clickGoogleVoiceCallButton(sendCommand) {
+  const deadline = Date.now() + 15000;
+  let lastError = "Google Voice call button not found.";
+
+  while (Date.now() < deadline) {
+    const response = await sendCommand("Runtime.evaluate", {
+      expression: `
+        (() => {
+          const selectors = [
+            'button[gv-test-id="dialog-confirm-button"]',
+            'button[aria-label="Call"]'
+          ];
+
+          const button =
+            selectors
+              .map((selector) => document.querySelector(selector))
+              .find(Boolean) ||
+            Array.from(document.querySelectorAll("button")).find((element) => {
+              return element.textContent && element.textContent.trim() === "Call";
+            });
+
+          if (!button) {
+            return { clicked: false, reason: "Call button not found yet." };
+          }
+
+          if (button.disabled || button.getAttribute("aria-disabled") === "true") {
+            return { clicked: false, reason: "Call button is present but disabled." };
+          }
+
+          button.scrollIntoView({ block: "center", inline: "center" });
+          button.click();
+
+          return { clicked: true };
+        })();
+      `,
+      returnByValue: true,
+      awaitPromise: true,
+      userGesture: true
+    });
+
+    const result = response?.result?.value;
+
+    if (result?.clicked) {
+      return;
+    }
+
+    if (result?.reason) {
+      lastError = result.reason;
+    }
+
+    await delay(GOOGLE_VOICE_AUTOMATION_STEP_DELAY_MS);
+  }
+
+  throw new Error(lastError);
 }
 
 async function getDetachedPageUrl(sendCommand) {
