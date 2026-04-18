@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Notification, ipcMain } = require("electron");
+const { app, BrowserWindow, Notification, Tray, Menu, ipcMain } = require("electron");
 const { spawn } = require("node:child_process");
 const fs = require("node:fs/promises");
 const net = require("node:net");
@@ -87,6 +87,8 @@ const defaultConfig = {
 let mainWindow = null;
 let cachedConfig = null;
 let gmailWatcherService = null;
+let tray = null;
+let isQuitting = false;
 
 const chromeState = {
   executablePath: "",
@@ -110,6 +112,63 @@ function getConfigPath() {
 
 function getAppIconPath() {
   return path.join(__dirname, "public", "icon.png");
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createMainWindow();
+    return;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function hideMainWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.hide();
+  }
+}
+
+function createTray() {
+  if (tray) {
+    return tray;
+  }
+
+  tray = new Tray(getAppIconPath());
+  tray.setToolTip(APP_NAME);
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      {
+        label: "Open OTO",
+        click: () => {
+          showMainWindow();
+        }
+      },
+      {
+        label: "Quit",
+        click: () => {
+          isQuitting = true;
+          app.quit();
+        }
+      }
+    ])
+  );
+
+  tray.on("click", () => {
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+      hideMainWindow();
+      return;
+    }
+
+    showMainWindow();
+  });
+
+  return tray;
 }
 
 function getChromeProfileDir() {
@@ -1391,7 +1450,7 @@ function createMainWindow() {
     minWidth: 900,
     minHeight: 700,
     autoHideMenuBar: true,
-    backgroundColor: "#10131a",
+    backgroundColor: "#f5f5f3",
     icon: getAppIconPath(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -1402,6 +1461,18 @@ function createMainWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, "index.html"));
+  mainWindow.on("minimize", (event) => {
+    event.preventDefault();
+    hideMainWindow();
+  });
+  mainWindow.on("close", (event) => {
+    if (isQuitting) {
+      return;
+    }
+
+    event.preventDefault();
+    hideMainWindow();
+  });
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
@@ -1533,16 +1604,21 @@ app.whenReady().then(() => {
     emitState: emitGmailWatcherState
   });
   registerIpc();
+  createTray();
   createMainWindow();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createMainWindow();
+      return;
     }
+
+    showMainWindow();
   });
 });
 
 app.on("before-quit", () => {
+  isQuitting = true;
   if (gmailWatcherService) {
     gmailWatcherService.dispose();
   }
@@ -1550,7 +1626,7 @@ app.on("before-quit", () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
+  if (process.platform !== "darwin" && isQuitting) {
     app.quit();
   }
 });
