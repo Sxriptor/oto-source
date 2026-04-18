@@ -14,6 +14,7 @@ const CHROME_CONNECT_POLL_MS = 250;
 const CHROME_DEBUGGING_PORT = 46871;
 const GOOGLE_VOICE_AUTOMATION_INITIAL_DELAY_MS = 2000;
 const GOOGLE_VOICE_AUTOMATION_STEP_DELAY_MS = 120;
+const GOOGLE_VOICE_CALL_DURATION_MS = 25000;
 
 function getChromeCandidatePaths() {
   if (process.platform === "win32") {
@@ -888,6 +889,8 @@ async function automateGoogleVoiceCallTarget(target) {
     await session.sendCommand("Page.bringToFront");
     await delay(GOOGLE_VOICE_AUTOMATION_INITIAL_DELAY_MS);
     await clickGoogleVoiceCallButton(session.sendCommand);
+    await delay(GOOGLE_VOICE_CALL_DURATION_MS);
+    await clickGoogleVoiceHangupButton(session.sendCommand);
   } finally {
     session.close();
   }
@@ -1087,32 +1090,61 @@ async function waitForDetachedPageLoad(sendCommand) {
 }
 
 async function clickGoogleVoiceCallButton(sendCommand) {
+  return clickGoogleVoiceButton(sendCommand, {
+    selectors: [
+      'button[gv-test-id="dialog-confirm-button"]',
+      'button[aria-label="Call"]'
+    ],
+    text: "Call",
+    missingReason: "Google Voice call button not found."
+  });
+}
+
+async function clickGoogleVoiceHangupButton(sendCommand) {
+  return clickGoogleVoiceButton(sendCommand, {
+    selectors: [
+      'button[gv-test-id="in-call-end-call"]',
+      'button[aria-label="Hang up call"]'
+    ],
+    text: "",
+    missingReason: "Google Voice hangup button not found."
+  });
+}
+
+async function clickGoogleVoiceButton(sendCommand, options) {
+  const { selectors, text, missingReason } = options;
   const deadline = Date.now() + 15000;
-  let lastError = "Google Voice call button not found.";
+  let lastError = missingReason;
 
   while (Date.now() < deadline) {
     const response = await sendCommand("Runtime.evaluate", {
       expression: `
         (() => {
-          const selectors = [
-            'button[gv-test-id="dialog-confirm-button"]',
-            'button[aria-label="Call"]'
-          ];
+          const selectors = ${JSON.stringify(selectors)};
+          const buttonText = ${JSON.stringify(text)};
+          const missingReason = ${JSON.stringify(missingReason)};
 
           const button =
             selectors
               .map((selector) => document.querySelector(selector))
               .find(Boolean) ||
-            Array.from(document.querySelectorAll("button")).find((element) => {
-              return element.textContent && element.textContent.trim() === "Call";
-            });
+            (buttonText
+              ? Array.from(document.querySelectorAll("button")).find((element) => {
+                  return element.textContent && element.textContent.trim() === buttonText;
+                })
+              : null);
 
           if (!button) {
-            return { clicked: false, reason: "Call button not found yet." };
+            return { clicked: false, reason: missingReason };
           }
 
           if (button.disabled || button.getAttribute("aria-disabled") === "true") {
-            return { clicked: false, reason: "Call button is present but disabled." };
+            return {
+              clicked: false,
+              reason: button.getAttribute("aria-label")
+                ? button.getAttribute("aria-label") + " button is present but disabled."
+                : "Google Voice button is present but disabled."
+            };
           }
 
           button.scrollIntoView({ block: "center", inline: "center" });
