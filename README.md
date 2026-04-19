@@ -1,5 +1,7 @@
 # OTO
 
+Successful attempts - 39/40
+
 OTO is a desktop control app built with Electron for two related jobs:
 
 - monitoring a real Google Chrome tab on a refresh interval
